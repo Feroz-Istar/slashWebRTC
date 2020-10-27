@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Hello World</title>
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.css" />
+
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+  <script type="text/javascript" src="assets/js/sip-0.11.4.js"></script>
+  <script type="text/javascript" src="assets/js/exSip.js"></script>
+</head>
+<body>
+<div class="container" id="configTab">
+  <div class="field-wrapper">
+    <input type="text" id="sipUri" value="testwebrtc@salesken.ai" name="uri" placeholder="sip:xxxx@demo.xxx.com" class="float-field" required/>
+    <label for="name" class="float-label">uri</label>
+    <div class="field-bar"></div>
+  </div>
+  <div class="field-wrapper">
+    <input type="text" id="sipWsServers" value="wss://cpaas.slashrtc.ai" name="sipWsServers" placeholder="wss://demo.xxx.com/slash/sip" class="float-field" required/>
+    <label for="name" class="float-label">wsServers</label>
+    <div class="field-bar"></div>
+  </div>
+  <div class="field-wrapper">
+    <input type="text" id="sipPassword" value="Test1234567890" name="sipPassword" class="float-field" placeholder="John Smith" required/>
+    <label for="name" class="float-label">password</label>
+    <div class="field-bar"></div>
+  </div>
+  <div class="button-wrapper">
+    <button id="buttonlogintoregister" type="submit">Submit</button>
+  </div>
+</div>
+<div class="container" id="callTab" style="display: none">
+  <button id="showConfigTab" class="backButton">
+    <i class="fa fa-arrow-left"></i>
+  </button>
+  <div class="field-wrapper">
+    <label id="sipStatus" for="name" class="float-label">Connected</label>
+    <!-- <button id="register" style="float: right">Register</button> -->
+    <br/>
+    <br/>
+  </div>
+  <div class="field-wrapper">
+    <label id="callStatus" for="name" class="float-label"></label>
+    <br/>
+    <br/>
+  </div>
+  <div class="field-wrapper">
+    <input type="text" id="callUri" value="918657601666@salesken.ai" name="uri" placeholder="sip:xxxx@demo.xxx.com" class="float-field" required/>
+    <label for="name" class="float-label">SIP URI</label>
+    <div class="field-bar"></div>
+  </div>
+  <div class="field-wrapper">
+    <div id="sipCall" class="button-wrapper callBtn">
+      <button id="call" >CALL</button>
+    </div>
+  </div>
+  <br/>
+  <br/>
+  <br/>
+  <div class="field-wrapper">
+    <input type="text" id="phoneNumber" value="918657601666" name="uri" placeholder="91878585785" class="float-field" required/>
+    <label for="name" class="float-label">Phone Number</label>
+    <div class="field-bar"></div>
+  </div>
+  <div id="sipCall" class="button-wrapper callBtn">
+    <button id="pstnCall" >CALL</button>
+  </div> 
+  <div id="sipMute" class="button-wrapper callBtn" style="display: none">
+    <button id="mute" >Mute</button>
+  </div>
+  <div id="sipUnmute" class="button-wrapper callBtn" style="display: none">
+    <button id="unmute" >UnMute</button>
+  </div>
+  <div id="sipEnd" class="button-wrapper callBtn" style="display: none">
+    <button id="end" >END</button>
+  </div>
+</div>
+<video id="remoteView"></video>
+<script type="text/javascript">
+  
+  var sourceValue = null;
+  
+  var elements = {
+        configForm:      document.getElementById('config-form'),
+        uaStatus:        document.getElementById('sipStatus'),
+        registerButton:  document.getElementById('ua-register'),
+        newSessionForm:  document.getElementById('new-session-form'),
+        inviteButton:    document.getElementById('ua-invite-submit'),
+        messageButton:   document.getElementById('ua-message-submit'),
+        uaVideo:         document.getElementById('ua-video'),
+        uaURI:           document.getElementById('ua-uri'),
+        sessionList:     document.getElementById('session-list'),
+        sessionTemplate: document.getElementById('session-template'),
+        messageTemplate: document.getElementById('message-template'),
+        register:        document.getElementById('register'),
+        callStatus:        document.getElementById('callStatus'),
+      };
+
+  var slashPhone = null;
+  var registerBtn = function(){
+
+    var sipUri       = document.getElementById("sipUri").value,
+        sipWsServers = document.getElementById("sipWsServers").value,
+        sipPassword  = document.getElementById("sipPassword").value;
+
+    sourceValue = sipUri;
+
+    var slashConfig = {
+          password  : sipPassword,
+          uri       : sipUri,
+          wsServers : sipWsServers,
+          register: true,
+          registerExpires: 45,
+        };
+    
+    var media = { remote: { audio: document.getElementById('remoteView') } };
+
+    elements.uaStatus.innerHTML = 'Connecting...';
+
+    slashPhone = new exSip(slashConfig, media);
+
+    slashPhone.on('registered', function( response, cause ) {
+
+      console.log("slashPhone Event registered",response, cause);
+      elements.uaStatus.innerHTML = 'Connected (Registered)';
+    });
+
+    slashPhone.on('unregistered', function( response, cause ) {
+
+      console.log("slashPhone Event unregistered",response, cause);
+      elements.uaStatus.innerHTML = 'Connected (Unregistered)';
+      // register.style.display = "block";
+    });
+
+    slashPhone.on('registrationFailed', function( response, cause ) {
+
+      console.log("slashPhone Event registrationFailed");
+      document.getElementById("sipStatus").textContent = "registrationFailed"; 
+    });
+
+    slashPhone.on('invite', function( session ) {
+
+      console.log("slashPhone Event invite",session);
+      slashPhone.answer();
+    });
+
+    slashPhone.on('outOfDialogReferRequested', function(referServerContext) {
+
+      console.log("slashPhone Event outOfDialogReferRequested", referServerContext);
+    });
+
+    slashPhone.on('transportCreated', function(transport) {
+
+      console.log("slashPhone Event transportCreated", transport);
+    });
+
+    slashPhone.on('new', function() {
+
+      console.log("Event new");
+    });
+
+    slashPhone.on('ringing', function() {
+
+      console.log("Event ringing");
+      elements.callStatus.innerHTML = 'Ringing';
+      elements.callStatus.style.display = 'block';
+
+      $(".callBtn").hide()
+      $("#sipEnd").show();
+    });
+
+    slashPhone.on('connecting', function() {
+
+      console.log("Event connecting");
+    });
+
+    slashPhone.on('connected', function() {
+
+      console.log("Event connected");
+      elements.callStatus.innerHTML = 'Agent Answered';
+      elements.callStatus.style.display = 'block';
+      // elements.uaStatus.innerHTML = 'Connected (Unregistered)';
+      // register.style.display = "none";
+    });
+
+    slashPhone.on('ended', function() {
+
+      console.log("Event ended");
+      elements.callStatus.innerHTML = 'Agent Ended';
+      elements.callStatus.style.display = 'block';
+      $(".callBtn").hide();
+      $("#sipCall").show();
+    });
+
+    slashPhone.on('hold', function() {
+
+      console.log("Event hold");
+    });
+
+    slashPhone.on('unhold', function() {
+
+      console.log("Event unhold");
+    });
+
+    slashPhone.on('mute', function() {
+
+      console.log("Event mute");
+    });
+
+    slashPhone.on('unmute', function() {
+
+      console.log("Event unmute");
+    });
+
+    slashPhone.on('dtmf', function() {
+
+      console.log("Event dtmf");
+    });
+
+    slashPhone.on('message', function() {
+
+      console.log("Event message");
+    });
+  
+    var configTab = document.getElementById("configTab");
+    var callTab   = document.getElementById("callTab");
+
+    callTab.style.display = "block";
+    configTab.style.display = "none";
+  }
+
+  var showConfigTab = function() {
+
+    callTab.style.display = "none";
+    configTab.style.display = "block";
+
+    slashPhone.stop();
+  }
+
+  var callEnd = function(){
+
+    slashPhone.terminate();
+  }
+
+   var pstnCall = function(){
+
+    
+     var destinationValue = $("#phoneNumber").val();
+     // var destinationValue = $("#callUri").val();
+     var form_data = {
+        sourceType             : "web",
+        sourceValue            : sourceValue,
+        destinationType        : "phone",
+        destinationValue       : destinationValue,
+        callerId               : sourceValue,
+        gatewayName            : "none",
+        gatewayName            : "none",
+        recordSource           : "false",
+        destinationCallerId    : destinationValue,
+        destinationGatewayName : "slashVoip",
+       };
+		var postJson = {
+			    "call2": {
+			        "type": "phone",
+			        "number": destinationValue,
+			        "ringDuration": 30,
+			        "gatewayName": "bsnlWings",
+			        "callerId": "+918277995161"
+			    },
+			    "call1": {
+			        "type": "web",
+			        "number": "testwebrtc@salesken.ai",
+			        "ringDuration": 30
+			    },
+			    "recordCall": true,
+			    "eventUrl": "https://ac04f6895110.ngrok.io/salesken-backend/slash_webhook"
+			}
+      /*  $.post("https://cpaas.slashrtc.ai/api/fe9333a0-a6b6-11ea-8921-75e0e17e2fe3/callAndConnect",postJson, function(message) {
+
+        console.log("message", message);
+       },'json'); */
+       
+       console.log(postJson);
+
+       
+		$.ajax({
+	         url: "https://cpaas.slashrtc.ai/api/fe9333a0-a6b6-11ea-8921-75e0e17e2fe3/callAndConnect",
+	         type: 'post',
+	         data: postJson,
+	         headers: {accept: 'application/techfunda', APP_KEY : 's@le$ken', APP_SECRET : '54afr43547hjafs89'},
+	         crossDomain : false,
+	         xhrFields: {
+	             withCredentials: true
+	         },
+	         dataType: 'json',
+	         beforeSend: function(xhr){xhr.setRequestHeader('X-Test-Header', 'test-value');},
+	         success: function (data) {
+
+	          console.info(data);
+	         },
+	         error: function (data) {
+
+	           console.info(data);
+	         }
+	     });
+       
+       
+   }
+
+   var call = function(){
+
+    var destinationValue = $("#callUri").val();
+     var form_data = {
+        sourceType             : "web",
+        sourceValue            : sourceValue,
+        destinationType        : "phone",
+        destinationValue       : destinationValue,
+        callerId               : sourceValue,
+        gatewayName            : "none",
+        gatewayName            : "none",
+        recordSource           : "false",
+        destinationCallerId    : destinationValue,
+        destinationGatewayName : "slashVoip",
+       };
+
+       $.ajax({
+         url: "https://ec.slashrtc.com/api/fe9333a0-a6b6-11ea-8921-75e0e17e2fe3/call",
+         type: 'post',
+         data: form_data,
+         headers: {accept: 'application/techfunda', other : 'other value', demo : 'demo value'},
+         crossDomain : true,
+         xhrFields: {
+             withCredentials: true
+         },
+         dataType: 'json',
+         beforeSend: function(xhr){xhr.setRequestHeader('X-Test-Header', 'test-value');},
+         success: function (data) {
+
+          console.info(data);
+         },
+         error: function (data) {
+
+           console.info(data);
+         }
+     });
+   }
+
+  document.getElementById("buttonlogintoregister").onclick = registerBtn;
+
+  document.getElementById("showConfigTab").onclick = showConfigTab;
+  document.getElementById("sipEnd").onclick = callEnd;
+   document.getElementById("call").onclick = call;
+   document.getElementById("pstnCall").onclick = pstnCall;
+</script>
+</body>
+</html>
